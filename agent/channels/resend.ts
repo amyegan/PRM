@@ -12,13 +12,21 @@ export function ownerEmail(): string {
   return email;
 }
 
+/**
+ * RESEND_EMAIL_DOMAIN comes from the Resend integration on Vercel. The domain must also be set
+ * up for receiving in Resend, otherwise replies never reach the webhook.
+ */
+function fromAddress(): string {
+  if (process.env.RESEND_FROM_ADDRESS) return process.env.RESEND_FROM_ADDRESS;
+  const domain = process.env.RESEND_EMAIL_DOMAIN?.trim().replace(/^@/, "");
+  return `prm@${domain || "example.resend.app"}`;
+}
+
 export const { bot, channel, send } = chatSdkChannel({
   userName: "PRM",
   adapters: {
     resend: createResendAdapter({
-      // Must be on a domain Resend receives for (your default .resend.app address works),
-      // otherwise replies never reach the webhook.
-      fromAddress: process.env.RESEND_FROM_ADDRESS ?? "prm@example.resend.app",
+      fromAddress: fromAddress(),
       fromName: "PRM",
     }),
   },

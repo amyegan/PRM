@@ -30,3 +30,8 @@ create table if not exists interactions (
 );
 
 create index if not exists interactions_contact_idx on interactions (contact_id, occurred_at desc);
+
+-- Added later: social profiles and where a contact came from. Safe to re-run.
+alter table contacts add column if not exists x text;
+alter table contacts add column if not exists bluesky text;
+alter table contacts add column if not exists source text not null default 'capture'; -- 'capture' | 'shared'

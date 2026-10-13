@@ -7,7 +7,7 @@
     "#evals/*": "./evals/*"
   },
   "scripts": {
-    "build": "next build",
+    "build": "node scripts/migrate.ts --if-configured && next build",
     "deploy": "eve deploy",
     "dev": "next dev",
     "eval": "eve eval",
@@ -16,7 +16,7 @@
     "build:eve": "eve build",
     "dev:eve": "eve dev",
     "start:eve": "eve start",
-    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts"
+    "db:migrate": "vercel env run -- node scripts/migrate.ts"
   },
   "dependencies": {
     "@chat-adapter/state-memory": "^4.41.1",
