@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { APP_NAME } from "@/lib/config";
 
 const LINKS = [
   { href: "/", label: "Capture" },
@@ -9,7 +10,7 @@ const LINKS = [
 export function SiteNav({ current }: { readonly current: string }) {
   return (
     <nav className="flex items-center gap-1 text-sm">
-      <span className="mr-auto font-medium">PRM</span>
+      <span className="mr-auto font-medium">{APP_NAME}</span>
       {LINKS.map((link) => (
         <Link
           aria-current={link.href === current ? "page" : undefined}

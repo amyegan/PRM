@@ -32,13 +32,40 @@ export default async function ContactsPage() {
 function ContactRow({ contact }: { readonly contact: Contact }) {
   const role = [contact.title, contact.company].filter(Boolean).join(" · ");
   const reach = [contact.email, contact.phone].filter(Boolean).join(" · ");
+  const socials = [
+    contact.linkedin && { label: "LinkedIn", url: contact.linkedin },
+    contact.x && { label: "X", url: contact.x },
+    contact.bluesky && { label: "Bluesky", url: contact.bluesky },
+  ].filter((link): link is { label: string; url: string } => Boolean(link));
 
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 px-4 py-3">
       <div className="min-w-0">
-        <p className="font-medium">{contact.name}</p>
+        <p className="font-medium">
+          {contact.name}
+          {contact.source === "shared" ? (
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 font-normal text-muted-foreground text-xs">
+              Shared with you
+            </span>
+          ) : null}
+        </p>
         {role ? <p className="text-muted-foreground text-sm">{role}</p> : null}
         {reach ? <p className="break-all text-muted-foreground text-sm">{reach}</p> : null}
+        {socials.length > 0 ? (
+          <p className="flex gap-3 text-sm">
+            {socials.map((link) => (
+              <a
+                className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                href={/^https?:\/\//.test(link.url) ? link.url : `https://${link.url}`}
+                key={link.label}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {link.label}
+              </a>
+            ))}
+          </p>
+        ) : null}
       </div>
       <div className="text-right text-muted-foreground text-sm">
         {contact.metAt ? <p>Met at {contact.metAt}</p> : null}

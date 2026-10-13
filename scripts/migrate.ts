@@ -1,9 +1,21 @@
 import { readFile } from "node:fs/promises";
 import pg from "pg";
+import { databaseUrl } from "../lib/database-url.ts";
 
-const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+// `--if-configured` lets the Vercel build skip migrations for projects without a database yet.
+const ifConfigured = process.argv.includes("--if-configured");
+
+const url = databaseUrl();
 if (!url) {
-  console.error("Set DATABASE_URL (run `vercel env pull .env.local` after adding Neon).");
+  if (ifConfigured) {
+    console.warn("DATABASE_URL is not set; skipping database migration.");
+    process.exit(0);
+  }
+  console.error(
+    "DATABASE_URL is not set. Neon's variables are Secret, so the Vercel CLI can't pull them;\n" +
+      "migrations run automatically during `eve deploy`. To migrate from your machine, copy the\n" +
+      "connection string from the Neon dashboard into .env.development.local.",
+  );
   process.exit(1);
 }
 

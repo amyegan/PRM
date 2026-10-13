@@ -1,11 +1,12 @@
 import pg from "pg";
+import { databaseUrl } from "./database-url";
 
 // One pool per runtime instance. Both the Next.js app and the eve agent import this module.
 const globalForPool = globalThis as typeof globalThis & { __prmPool?: pg.Pool };
 
 function pool(): pg.Pool {
   if (!globalForPool.__prmPool) {
-    const connectionString = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+    const connectionString = databaseUrl();
     if (!connectionString) {
       throw new Error("DATABASE_URL is not set. Add Neon from the Vercel Marketplace and run `vercel env pull`.");
     }
@@ -22,12 +23,15 @@ export type Contact = {
   email: string | null;
   phone: string | null;
   linkedin: string | null;
+  x: string | null;
+  bluesky: string | null;
   website: string | null;
   metAt: string | null;
   notes: string | null;
   reconnectEveryDays: number;
   lastContactedAt: string | null;
   snoozedUntil: string | null;
+  source: "capture" | "shared";
   createdAt: string;
 };
 
@@ -40,6 +44,8 @@ export type ContactFields = Partial<
     | "email"
     | "phone"
     | "linkedin"
+    | "x"
+    | "bluesky"
     | "website"
     | "metAt"
     | "notes"
@@ -57,6 +63,8 @@ const COLUMNS: Record<keyof ContactFields, string> = {
   email: "email",
   phone: "phone",
   linkedin: "linkedin",
+  x: "x",
+  bluesky: "bluesky",
   website: "website",
   metAt: "met_at",
   notes: "notes",
@@ -75,12 +83,15 @@ function toContact(row: Record<string, any>): Contact {
     email: row.email,
     phone: row.phone,
     linkedin: row.linkedin,
+    x: row.x,
+    bluesky: row.bluesky,
     website: row.website,
     metAt: row.met_at,
     notes: row.notes,
     reconnectEveryDays: row.reconnect_every_days,
     lastContactedAt: iso(row.last_contacted_at),
     snoozedUntil: iso(row.snoozed_until),
+    source: row.source,
     createdAt: iso(row.created_at)!,
   };
 }
@@ -129,6 +140,7 @@ export async function findContacts(query: string, limit = 10): Promise<Contact[]
   const { rows } = await pool().query(
     `select * from contacts
      where name ilike $1 or company ilike $1 or email ilike $1 or met_at ilike $1
+        or linkedin ilike $1 or x ilike $1 or bluesky ilike $1
      order by lower(name) = lower($2) desc, updated_at desc
      limit $3`,
     [`%${query}%`, query, limit],
@@ -191,6 +203,44 @@ export async function logInteraction(
   }
 }
 
+/**
+ * Saves contact info someone submitted on the public share page. Untrusted input never
+ * overwrites an existing contact: if the email is already saved, the submission is recorded
+ * as an interaction on that contact for the owner to review instead.
+ */
+export async function addSharedContact(
+  fields: ContactFields & { name: string },
+  message?: string,
+): Promise<{ contact: Contact; created: boolean }> {
+  const entries = Object.entries(fields).filter(([, v]) => v !== undefined && v !== "") as [
+    keyof ContactFields,
+    unknown,
+  ][];
+  const columns = [...entries.map(([key]) => COLUMNS[key]), "source"];
+  const values = [...entries.map(([, value]) => value), "shared"];
+
+  const { rows } = await pool().query(
+    `insert into contacts (${columns.join(", ")})
+     values (${values.map((_, i) => `$${i + 1}`).join(", ")})
+     on conflict (lower(email)) where email is not null do nothing
+     returning *`,
+    values,
+  );
+  const note = message ? ` Their note: "${message}"` : "";
+
+  if (rows[0]) {
+    const contact = toContact(rows[0]);
+    await logInteraction(contact.id, `Shared their contact info via your public page.${note}`);
+    return { contact, created: true };
+  }
+
+  const existing = await pool().query(`select * from contacts where lower(email) = lower($1)`, [fields.email]);
+  const contact = toContact(existing.rows[0]);
+  const details = entries.map(([key, value]) => `${key}: ${value}`).join(", ");
+  await logInteraction(contact.id, `Shared their contact info again via your public page (${details}).${note}`);
+  return { contact, created: false };
+}
+
 export type ReconnectCandidate = Contact & {
   daysSinceContact: number;
   lastInteraction: string | null;
@@ -222,4 +272,30 @@ export async function listReconnectCandidates(limit = 5): Promise<ReconnectCandi
 export async function listContacts(): Promise<Contact[]> {
   const { rows } = await pool().query(`select * from contacts order by created_at desc limit 500`);
   return rows.map(toContact);
+}
+
+/** Contacts added since `since`, oldest first. */
+export async function listContactsCreatedSince(since: Date): Promise<Contact[]> {
+  const { rows } = await pool().query(
+    `select * from contacts where created_at >= $1 order by created_at asc limit 100`,
+    [since],
+  );
+  return rows.map(toContact);
+}
+
+export type RecentContact = Contact & { lastInteraction: string | null };
+
+/** Contacts you talked to in the last `days` days, most recent first. */
+export async function listRecentContacts(days = 7, limit = 20): Promise<RecentContact[]> {
+  const { rows } = await pool().query(
+    `select c.*,
+            (select summary from interactions i where i.contact_id = c.id
+             order by occurred_at desc limit 1) as last_interaction
+     from contacts c
+     where c.last_contacted_at > now() - make_interval(days => $1)
+     order by c.last_contacted_at desc
+     limit $2`,
+    [days, limit],
+  );
+  return rows.map((row) => ({ ...toContact(row), lastInteraction: row.last_interaction }));
 }

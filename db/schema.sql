@@ -10,7 +10,7 @@ create table if not exists contacts (
   website               text,
   met_at                text,          -- event or place, e.g. "Ship London 2026"
   notes                 text,
-  reconnect_every_days  integer not null default 90,
+  reconnect_every_days  integer not null default 60,
   last_contacted_at     timestamptz,
   snoozed_until         timestamptz,
   created_at            timestamptz not null default now(),
@@ -30,3 +30,11 @@ create table if not exists interactions (
 );
 
 create index if not exists interactions_contact_idx on interactions (contact_id, occurred_at desc);
+
+-- Added later: social profiles and where a contact came from. Safe to re-run.
+alter table contacts add column if not exists x text;
+alter table contacts add column if not exists bluesky text;
+alter table contacts add column if not exists source text not null default 'capture'; -- 'capture' | 'shared'
+
+-- New contacts default to reconnecting every 60 days (was 90). Existing contacts keep their cadence.
+alter table contacts alter column reconnect_every_days set default 60;

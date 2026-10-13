@@ -24,6 +24,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // The agent's own routes (/eve/*, workflow webhooks) enforce their own auth; the Resend
-  // webhook at /eve/v1/resend must stay reachable without a cookie.
-  matcher: ["/((?!login|eve/|\\.well-known/|_next/|icon|apple-icon|favicon).*)"],
+  // webhook at /eve/v1/resend must stay reachable without a cookie. /share checks SHARE_KEY.
+  matcher: ["/((?!login|share|eve/|\\.well-known/|_next/|icon|apple-icon|favicon).*)"],
 };

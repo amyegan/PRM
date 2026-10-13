@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -20,7 +21,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PRM",
+  title: APP_NAME,
   description: "Capture contacts from badges and business cards, and get a weekly reminder of who to reconnect with.",
 };
 

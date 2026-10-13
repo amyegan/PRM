@@ -1,48 +1,83 @@
 "use client";
 
 import { useEveAgent } from "eve/react";
-import { CameraIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { AlertCircleIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WEB_CHAT_AGENT } from "@/app/eve-agent";
 import { AgentMessage } from "./agent-message";
+import { ModeTabs, type Photo, PhotoPicker } from "./photo-picker";
 
-const MAX_IMAGE_EDGE = 1600;
+const SAVE_TOOLS = new Set(["save_contact", "update_contact"]);
 
-/** One capture is one agent session. Remount (via `key`) to start the next capture fresh. */
-export function CaptureForm({ onReset }: { readonly onReset: () => void }) {
+type CaptureMode = "photo" | "social";
+
+const MODES = [
+  { value: "social", label: "Social profile" },
+  { value: "photo", label: "Card photo" },
+] as const;
+
+export type CaptureDraft = {
+  readonly mode: CaptureMode;
+  readonly photo?: Photo;
+  readonly socialUrl: string;
+  readonly name: string;
+  readonly metAt: string;
+  readonly notes: string;
+};
+
+type AgentEvents = ReturnType<typeof useEveAgent>["events"];
+
+/**
+ * One capture is one agent session. Remount (via `key`) to start the next capture fresh;
+ * pass the current draft back to retry with the same photo and details.
+ */
+export function CaptureForm({
+  initialDraft,
+  onReset,
+}: {
+  readonly initialDraft?: CaptureDraft;
+  readonly onReset: (retry?: CaptureDraft) => void;
+}) {
   const agent = useEveAgent({ agent: WEB_CHAT_AGENT });
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<{ dataUrl: string; name: string }>();
-  const [metAt, setMetAt] = useState("");
-  const [notes, setNotes] = useState("");
+  const [mode, setMode] = useState<CaptureMode>(initialDraft?.mode ?? "social");
+  const [photo, setPhoto] = useState(initialDraft?.photo);
+  const [socialUrl, setSocialUrl] = useState(initialDraft?.socialUrl ?? "");
+  const [name, setName] = useState(initialDraft?.name ?? "");
+  const [metAt, setMetAt] = useState(initialDraft?.metAt ?? "");
+  const [notes, setNotes] = useState(initialDraft?.notes ?? "");
   const [error, setError] = useState<string>();
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const submitted = agent.data.messages.length > 0;
   const replies = agent.data.messages.filter((message) => message.role === "assistant");
+  const outcome = isBusy || !submitted ? undefined : captureOutcome(agent.events, agent.error);
 
-  async function choosePhoto(file: File | undefined) {
-    if (!file) return;
-    setError(undefined);
-    try {
-      setPhoto({ dataUrl: await downscale(file), name: file.name });
-    } catch {
-      setError("Couldn't read that image. Try a JPEG or PNG.");
-    }
-  }
+  const draft: CaptureDraft = { mode, photo, socialUrl, name, metAt, notes };
+  const canSubmit = mode === "photo" ? photo !== undefined : socialUrl.trim().length > 0;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!photo) return;
-    const details = [
-      "Capture the contact in this photo.",
+    if (!canSubmit) return;
+    const extras = [
       metAt.trim() && `We met at: ${metAt.trim()}.`,
       notes.trim() && `Notes: ${notes.trim()}`,
     ].filter(Boolean);
+
+    if (mode === "social") {
+      const lines = [
+        `Capture the contact from this social profile: ${socialUrl.trim()}`,
+        name.trim() && `Their name: ${name.trim()}.`,
+        ...extras,
+      ];
+      await agent.send(lines.filter(Boolean).join("\n"));
+      return;
+    }
+
+    if (!photo) return;
     await agent.send([
-      { type: "text", text: details.join("\n") },
+      { type: "text", text: ["Capture the contact on this business card.", ...extras].join("\n") },
       { type: "file", data: photo.dataUrl, mediaType: "image/jpeg", filename: photo.name },
     ]);
   }
@@ -50,30 +85,35 @@ export function CaptureForm({ onReset }: { readonly onReset: () => void }) {
   return (
     <div className="flex flex-col gap-6">
       <form className="flex flex-col gap-4" onSubmit={submit}>
-        <button
-          className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed bg-muted/40 text-muted-foreground transition hover:bg-muted disabled:cursor-default"
-          disabled={submitted}
-          onClick={() => fileInput.current?.click()}
-          type="button"
-        >
-          {photo ? (
-            // biome-ignore lint/performance/noImgElement: local data URL preview
-            <img alt="Selected badge or card" className="size-full object-contain" src={photo.dataUrl} />
-          ) : (
-            <span className="flex flex-col items-center gap-2 text-sm">
-              <CameraIcon className="size-8" />
-              Take or choose a photo of a badge or business card
-            </span>
-          )}
-        </button>
-        <input
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(event) => void choosePhoto(event.currentTarget.files?.[0])}
-          ref={fileInput}
-          type="file"
-        />
+        <ModeTabs disabled={submitted} modes={MODES} onChange={setMode} value={mode} />
+        {mode === "photo" ? (
+          <PhotoPicker
+            disabled={submitted}
+            label="Take or choose a photo of a business card"
+            onError={setError}
+            onPhoto={(next) => {
+              setError(undefined);
+              setPhoto(next);
+            }}
+            photo={photo}
+          />
+        ) : (
+          <>
+            <Input
+              disabled={submitted}
+              inputMode="url"
+              onChange={(event) => setSocialUrl(event.currentTarget.value)}
+              placeholder="LinkedIn, X, or Bluesky profile link"
+              value={socialUrl}
+            />
+            <Input
+              disabled={submitted}
+              onChange={(event) => setName(event.currentTarget.value)}
+              placeholder="Their name (optional for Bluesky)"
+              value={name}
+            />
+          </>
+        )}
         <Input
           disabled={submitted}
           onChange={(event) => setMetAt(event.currentTarget.value)}
@@ -88,7 +128,7 @@ export function CaptureForm({ onReset }: { readonly onReset: () => void }) {
         />
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         {submitted ? null : (
-          <Button disabled={!photo} type="submit">
+          <Button disabled={!canSubmit} type="submit">
             Save contact
           </Button>
         )}
@@ -112,29 +152,72 @@ export function CaptureForm({ onReset }: { readonly onReset: () => void }) {
           ))}
           {isBusy ? (
             <p className="flex items-center gap-2 text-muted-foreground text-sm">
-              <LoaderIcon className="size-4 animate-spin" /> Reading the photo…
+              <LoaderIcon className="size-4 animate-spin" />{" "}
+              {mode === "photo" ? "Reading the card…" : "Looking up the profile…"}
             </p>
           ) : null}
-          {agent.error ? <p className="text-destructive text-sm">{agent.error.message}</p> : null}
-          {isBusy ? null : (
-            <Button onClick={onReset} type="button" variant="outline">
+          {outcome?.saved === false ? (
+            <div
+              className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm"
+              role="alert"
+            >
+              <AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
+              <div>
+                <p className="font-medium">The contact wasn't saved</p>
+                <p className="mt-0.5 text-muted-foreground">{outcome.message}</p>
+              </div>
+            </div>
+          ) : null}
+          {outcome?.saved === false ? (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => onReset(draft)} type="button">
+                <RotateCcwIcon className="size-4" /> Try again
+              </Button>
+              <Button onClick={() => onReset()} type="button" variant="outline">
+                Start over
+              </Button>
+            </div>
+          ) : null}
+          {outcome?.saved ? (
+            <Button onClick={() => onReset()} type="button" variant="outline">
               <RotateCcwIcon className="size-4" /> Capture another
             </Button>
-          )}
+          ) : null}
         </section>
       ) : null}
     </div>
   );
 }
 
-/** Phone photos are often 5–10 MB; shrink them before they go to the model. */
-async function downscale(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return canvas.toDataURL("image/jpeg", 0.85);
+/**
+ * A capture succeeded only if a save or update tool call completed. Anything else (a failed
+ * turn, a failed tool call, or a reply without saving) is reported as an error.
+ */
+function captureOutcome(
+  events: AgentEvents,
+  transportError: Error | undefined,
+): { saved: true } | { saved: false; message: string } {
+  let failure: string | undefined;
+  for (const event of events) {
+    if (event.type === "action.result") {
+      const { result, status, error } = event.data;
+      if (result.kind !== "tool-result" || !SAVE_TOOLS.has(result.toolName)) continue;
+      const output = result.output as { error?: unknown } | null;
+      if (status === "completed" && !result.isError && !output?.error) return { saved: true };
+      failure =
+        error?.message ?? (typeof output?.error === "string" ? output.error : "Saving to the database failed.");
+    } else if (event.type === "turn.failed") {
+      failure =
+        event.data.code === "MODEL_CALL_FAILED"
+          ? "The model is temporarily unavailable."
+          : event.data.message;
+    }
+  }
+  return {
+    saved: false,
+    message:
+      transportError?.message ??
+      failure ??
+      "The agent didn't save a contact. Check its reply above.",
+  };
 }

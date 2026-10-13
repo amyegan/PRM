@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { APP_NAME } from "@/lib/config";
 import { isAuthConfigured, isValidSession, SESSION_COOKIE, sessionToken } from "@/lib/auth";
 
 async function login(formData: FormData) {
@@ -29,7 +30,7 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 px-4">
-      <h1 className="font-medium text-3xl tracking-tight">PRM</h1>
+      <h1 className="font-medium text-3xl tracking-tight">{APP_NAME}</h1>
       {isAuthConfigured() ? (
         <form action={login} className="flex flex-col gap-3">
           <input name="next" type="hidden" value={next ?? "/"} />

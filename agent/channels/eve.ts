@@ -16,13 +16,25 @@ function ownerSession(): AuthFn<Request> {
   };
 }
 
+/**
+ * `localDev()`, plus permission for evals to stub tools. localDev only matches under `eve dev`,
+ * so production never accepts stubbed sessions.
+ */
+function localDevWithEvalStubs(): AuthFn<Request> {
+  const authenticate = localDev();
+  return async (request) => {
+    const caller = await authenticate(request);
+    return caller ? { ...caller, allowToolStubs: true } : null;
+  };
+}
+
 export default eveChannel({
   auth: [
     ownerSession(),
     // Lets the eve TUI and your other Vercel deployments reach the deployed agent.
     vercelOidc(),
-    // Open on localhost for `eve dev`; ignored in production.
-    localDev(),
+    // Open on localhost for `eve dev` and `eve eval`; ignored in production.
+    localDevWithEvalStubs(),
   ],
   onMessage(ctx) {
     return {
