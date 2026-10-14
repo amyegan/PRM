@@ -38,7 +38,15 @@ export const { bot, channel, send } = chatSdkChannel({
 
 async function forwardOwnerEmail(thread: Thread, message: Message) {
   // The inbound address is public. Only the owner may read or change the database.
-  if (message.author.userId.toLowerCase() !== ownerEmail()) return;
+  const sender = message.author.userId.toLowerCase();
+  if (sender !== ownerEmail()) {
+    console.warn(`[resend] Ignoring email from ${redact(sender)}: not OWNER_EMAIL (${redact(ownerEmail())}).`);
+    return;
+  }
+  if (!message.text.trim()) {
+    console.warn(`[resend] Ignoring email ${message.id}: no text or HTML body.`);
+    return;
+  }
 
   await thread.subscribe();
   await send(message.text, {
@@ -52,6 +60,12 @@ async function forwardOwnerEmail(thread: Thread, message: Message) {
     context: [`Today is ${new Date().toDateString()}. This message is an email from the owner.`],
     turnPolicy: "queue",
   });
+}
+
+/** "amy.egan@example.com" → "am…n@example.com (8)", enough to spot a mismatch in logs. */
+function redact(email: string): string {
+  const [local = "", domain = ""] = email.split("@");
+  return `${local.slice(0, 2)}…${local.slice(-1)}@${domain} (${local.length})`;
 }
 
 bot.onNewMention(forwardOwnerEmail);
