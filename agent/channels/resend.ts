@@ -3,6 +3,7 @@ import { createPostgresState } from "@chat-adapter/state-pg";
 import { createResendAdapter } from "@resend/chat-sdk-adapter";
 import type { Message, Thread } from "chat";
 import { chatSdkChannel } from "eve/channels/chat-sdk";
+import { databaseUrl } from "../../lib/database-url";
 
 const THREAD_STATE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -31,7 +32,7 @@ export const { bot, channel, send } = chatSdkChannel({
     }),
   },
   // Thread subscriptions and email threading headers must survive across function instances.
-  state: process.env.DATABASE_URL || process.env.POSTGRES_URL ? createPostgresState() : createMemoryState(),
+  state: databaseUrl() ? createPostgresState({ url: databaseUrl() }) : createMemoryState(),
   streaming: false,
 });
 

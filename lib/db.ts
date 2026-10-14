@@ -1,11 +1,12 @@
 import pg from "pg";
+import { databaseUrl } from "./database-url";
 
 // One pool per runtime instance. Both the Next.js app and the eve agent import this module.
 const globalForPool = globalThis as typeof globalThis & { __prmPool?: pg.Pool };
 
 function pool(): pg.Pool {
   if (!globalForPool.__prmPool) {
-    const connectionString = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+    const connectionString = databaseUrl();
     if (!connectionString) {
       throw new Error("DATABASE_URL is not set. Add Neon from the Vercel Marketplace and run `vercel env pull`.");
     }

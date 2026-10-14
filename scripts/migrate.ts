@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
 import pg from "pg";
+import { databaseUrl } from "../lib/database-url.ts";
 
 // `--if-configured` lets the Vercel build skip migrations for projects without a database yet.
 const ifConfigured = process.argv.includes("--if-configured");
 
-const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+const url = databaseUrl();
 if (!url) {
   if (ifConfigured) {
     console.warn("DATABASE_URL is not set; skipping database migration.");
