@@ -14,7 +14,7 @@ export default function CapturePage() {
       <header className="flex flex-col gap-1">
         <h1 className="font-medium text-3xl tracking-tight">Capture a contact</h1>
         <p className="text-muted-foreground text-sm">
-          Snap a conference badge or business card, or paste a social profile link. The agent saves the contact.
+          Paste a social profile link or snap a business card. The agent saves the contact.
         </p>
       </header>
       <CaptureForm

@@ -14,8 +14,8 @@ const SAVE_TOOLS = new Set(["save_contact", "update_contact"]);
 type CaptureMode = "photo" | "social";
 
 const MODES = [
-  { value: "photo", label: "Photo" },
-  { value: "social", label: "Social link" },
+  { value: "social", label: "Social profile" },
+  { value: "photo", label: "Card photo" },
 ] as const;
 
 export type CaptureDraft = {
@@ -41,7 +41,7 @@ export function CaptureForm({
   readonly onReset: (retry?: CaptureDraft) => void;
 }) {
   const agent = useEveAgent({ agent: WEB_CHAT_AGENT });
-  const [mode, setMode] = useState<CaptureMode>(initialDraft?.mode ?? "photo");
+  const [mode, setMode] = useState<CaptureMode>(initialDraft?.mode ?? "social");
   const [photo, setPhoto] = useState(initialDraft?.photo);
   const [socialUrl, setSocialUrl] = useState(initialDraft?.socialUrl ?? "");
   const [name, setName] = useState(initialDraft?.name ?? "");
@@ -77,7 +77,7 @@ export function CaptureForm({
 
     if (!photo) return;
     await agent.send([
-      { type: "text", text: ["Capture the contact in this photo.", ...extras].join("\n") },
+      { type: "text", text: ["Capture the contact on this business card.", ...extras].join("\n") },
       { type: "file", data: photo.dataUrl, mediaType: "image/jpeg", filename: photo.name },
     ]);
   }
@@ -89,7 +89,7 @@ export function CaptureForm({
         {mode === "photo" ? (
           <PhotoPicker
             disabled={submitted}
-            label="Take or choose a photo of a badge or business card"
+            label="Take or choose a photo of a business card"
             onError={setError}
             onPhoto={(next) => {
               setError(undefined);
@@ -153,7 +153,7 @@ export function CaptureForm({
           {isBusy ? (
             <p className="flex items-center gap-2 text-muted-foreground text-sm">
               <LoaderIcon className="size-4 animate-spin" />{" "}
-              {mode === "photo" ? "Reading the photo…" : "Looking up the profile…"}
+              {mode === "photo" ? "Reading the card…" : "Looking up the profile…"}
             </p>
           ) : null}
           {outcome?.saved === false ? (

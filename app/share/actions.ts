@@ -2,8 +2,14 @@
 
 import { z } from "zod";
 import { addSharedContact, type ContactFields } from "@/lib/db";
-import { extractContactFromPhoto, isValidShareKey } from "@/lib/share";
+import { extractContactFromPhoto, isValidShareKey, type PhotoExtraction } from "@/lib/share";
 import { lookupSocialProfile } from "@/lib/social";
+
+const PHOTO_ERRORS: Record<Extract<PhotoExtraction, { ok: false }>["reason"], string> = {
+  badge: "That looks like a conference badge. Please use a business card, or share a social profile instead.",
+  not_a_card: "That doesn't look like a business card. Try another photo, or share a social profile instead.",
+  no_name: "We couldn't read a name on that card. Try a clearer photo, or type your details instead.",
+};
 
 export type ShareResult = { ok: true; name: string } | { ok: false; error: string };
 
@@ -44,13 +50,9 @@ export async function submitSharedContact(input: unknown): Promise<ShareResult> 
 
   try {
     if (data.mode === "photo") {
-      fields = await extractContactFromPhoto(data.photo);
-      if (!fields) {
-        return {
-          ok: false,
-          error: "We couldn't read a name from that photo. Try a clearer photo, or type your details instead.",
-        };
-      }
+      const extraction = await extractContactFromPhoto(data.photo);
+      if (!extraction.ok) return { ok: false, error: PHOTO_ERRORS[extraction.reason] };
+      fields = extraction.fields;
     } else if (data.mode === "social") {
       const profile = await lookupSocialProfile(data.socialUrl);
       if (!profile) return { ok: false, error: "Enter a LinkedIn, X, or Bluesky profile link." };

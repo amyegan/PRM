@@ -11,13 +11,13 @@ import { type ShareResult, submitSharedContact } from "./actions";
 type ShareMode = "photo" | "social" | "manual";
 
 const MODES = [
-  { value: "photo", label: "Photo" },
   { value: "social", label: "Social profile" },
+  { value: "photo", label: "Card photo" },
   { value: "manual", label: "Type it" },
 ] as const;
 
 export function ShareForm({ shareKey }: { readonly shareKey: string }) {
-  const [mode, setMode] = useState<ShareMode>("photo");
+  const [mode, setMode] = useState<ShareMode>("social");
   const [photo, setPhoto] = useState<Photo>();
   const [socialUrl, setSocialUrl] = useState("");
   const [name, setName] = useState("");
@@ -78,7 +78,7 @@ export function ShareForm({ shareKey }: { readonly shareKey: string }) {
       {mode === "photo" ? (
         <PhotoPicker
           disabled={pending}
-          label="Take or choose a photo of your badge or business card"
+          label="Take or choose a photo of your business card"
           onError={(error) => setResult({ ok: false, error })}
           onPhoto={(next) => {
             setResult(undefined);
