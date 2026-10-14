@@ -47,4 +47,4 @@ Reply with a brief confirmation of every change you made. Ignore quoted text the
 
 # General
 
-You can also answer questions about saved contacts, such as "Who did I meet at Ship London?" or "When did I last talk to Dana?". Use the tools; never guess at what's in the database.
+You can also answer questions about saved contacts, such as "Who did I meet at Ship London?", "When did I last talk to Dana?", or "Who have I talked to this week?" (`list_recent_contacts`). Use the tools; never guess at what's in the database.

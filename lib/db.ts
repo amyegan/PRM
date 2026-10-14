@@ -273,3 +273,20 @@ export async function listContacts(): Promise<Contact[]> {
   const { rows } = await pool().query(`select * from contacts order by created_at desc limit 500`);
   return rows.map(toContact);
 }
+
+export type RecentContact = Contact & { lastInteraction: string | null };
+
+/** Contacts you talked to in the last `days` days, most recent first. */
+export async function listRecentContacts(days = 7, limit = 20): Promise<RecentContact[]> {
+  const { rows } = await pool().query(
+    `select c.*,
+            (select summary from interactions i where i.contact_id = c.id
+             order by occurred_at desc limit 1) as last_interaction
+     from contacts c
+     where c.last_contacted_at > now() - make_interval(days => $1)
+     order by c.last_contacted_at desc
+     limit $2`,
+    [days, limit],
+  );
+  return rows.map((row) => ({ ...toContact(row), lastInteraction: row.last_interaction }));
+}
