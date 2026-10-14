@@ -105,7 +105,7 @@ Submissions don't go through the eve agent. The agent can read and edit every co
 - **Replies may start a new thread.** The Resend adapter (v0.3.0) doesn't set its own `Message-ID` on outgoing mail, so your reply to a digest might not link back to the digest's session. The agent is built for this: every update goes through the database tools, and your email client quotes the digest in the reply.
 - **Social links:** only Bluesky profiles can be read. For LinkedIn and X the agent stores the link and needs you to give the name.
 - **Card photos go through the web page only.** The Resend adapter doesn't download inbound attachments yet.
-- **Contacts are due** when the time since you last talked exceeds their reconnect cadence (90 days by default). Ask the agent to change a cadence ("check in with Dana every 30 days") or snooze someone.
+- **Contacts are due** when the time since you last talked exceeds their reconnect cadence (60 days by default). Ask the agent to change a cadence ("check in with Dana every 30 days") or snooze someone.
 - The default model is `anthropic/claude-sonnet-5.5`. Any vision-capable model on [AI Gateway](https://vercel.com/ai-gateway/models) works; change it in `agent/agent.ts`.
 
 ## Future channels

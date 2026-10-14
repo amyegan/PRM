@@ -21,5 +21,5 @@ export const contactFieldsSchema = z.object({
     .min(7)
     .max(365)
     .optional()
-    .describe("How often to suggest reconnecting. Defaults to 90 days."),
+    .describe("How often to suggest reconnecting. Defaults to 60 days."),
 });

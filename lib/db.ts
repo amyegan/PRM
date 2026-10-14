@@ -274,6 +274,15 @@ export async function listContacts(): Promise<Contact[]> {
   return rows.map(toContact);
 }
 
+/** Contacts added since `since`, oldest first. */
+export async function listContactsCreatedSince(since: Date): Promise<Contact[]> {
+  const { rows } = await pool().query(
+    `select * from contacts where created_at >= $1 order by created_at asc limit 100`,
+    [since],
+  );
+  return rows.map(toContact);
+}
+
 export type RecentContact = Contact & { lastInteraction: string | null };
 
 /** Contacts you talked to in the last `days` days, most recent first. */
