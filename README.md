@@ -20,7 +20,9 @@ Paste a LinkedIn, X, or Bluesky link, or snap a photo of a business card, and an
 | Contact tools: save, find, get, update, log interaction, list overdue, look up a social profile | `agent/tools/` |
 | Email channel (Chat SDK + Resend adapter) | `agent/channels/resend.ts` |
 | Web channel with password auth | `agent/channels/eve.ts` |
-| Weekly digest | `agent/schedules/weekly_reconnect.ts` |
+| Weekly digest and daily new-contacts email | `agent/schedules/` |
+| Skills: how to write each scheduled email, loaded only when a schedule fires | `agent/skills/` |
+| Evals for the skills | `evals/skills/` |
 | Database queries, shared by the agent and the pages | `lib/db.ts`, `db/schema.sql` |
 | Capture page, contacts list, chat | `app/page.tsx`, `app/contacts/`, `app/s/` |
 | Public share page | `app/share/`, `lib/share.ts`, `lib/social.ts` |
@@ -98,6 +100,18 @@ Submissions don't go through the eve agent. The agent can read and edit every co
 - Social links are parsed in code. Bluesky profiles are read from the public API; LinkedIn and X can't be read without signing in, so visitors add their name.
 - New people are saved with a "Shared with you" label. If the email matches a contact you already have, nothing is overwritten; the submitted details are logged as an interaction on that contact for you to review.
 - A hidden honeypot field drops simple bots. There's no rate limiting, so treat the key as the main protection and rotate it if it leaks.
+
+## Skills and evals
+
+The instructions for writing the weekly digest and the daily new-contacts email live in `agent/skills/` rather than `agent/instructions.md`. Only each skill's one-line description is in the system prompt; the agent loads the full instructions with `eve__skill` when a schedule asks for that email (the prompts in `agent/lib/digest-prompts.ts` name the skill). This keeps every other chat and email turn's prompt shorter.
+
+`evals/skills/` checks that each schedule prompt loads its skill and mentions every contact, and that an ordinary question loads neither. Run them with:
+
+```bash
+npm run eval
+```
+
+The evals stub the database tools, and the agent only allows stubbed sessions under `eve dev` (`agent/channels/eve.ts`), so they run locally and need working AI Gateway credentials.
 
 ## Notes and limitations
 

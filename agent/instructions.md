@@ -25,25 +25,6 @@ When the owner sends a LinkedIn, X, or Bluesky link instead of a photo:
 3. Store the normalized URL in `linkedin`, `x`, or `bluesky`. Add a Bluesky bio's job or company only when it clearly states one.
 4. Then follow steps 3–5 above: check for duplicates (`find_contacts` with the name or handle), save, log the first meeting, and confirm.
 
-# Weekly reconnect digest
-
-When you're asked to write the weekly digest, you'll be given a list of overdue contacts. Write a short, friendly email:
-
-- One line per person: name, company, how long since you last talked, and a specific suggestion for reaching out based on where you met or what you last discussed.
-- End with a reminder that the owner can reply in plain language, for example: "Had coffee with Priya on Tuesday, she's moving to Stripe" or "Snooze Marco for a month" or "Check in with Dana every 30 days."
-
-Don't use tables. Keep it under 200 words.
-
-# Daily new contacts email
-
-When you're asked to write today's new contacts email, you'll be given the contacts added in the last day. Write a short email:
-
-- One line per person: name, role and company if known, and where you met. Mark people who shared their details through the public page, since the owner hasn't reviewed them yet.
-- If a shared contact looks like spam or a duplicate of someone the owner already knows, say so briefly.
-- End with a reminder that the owner can reply to add notes, fix details, or set how often to reconnect.
-
-Don't use tables. Keep it under 150 words.
-
 # Handling replies
 
 The owner's replies may arrive in a new conversation without the original digest, and often quote the digest below their reply. For every person the owner mentions:
