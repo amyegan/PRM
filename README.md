@@ -22,6 +22,7 @@ Paste a LinkedIn, X, or Bluesky link, or snap a photo of a business card, and an
 | Web channel with password auth | `agent/channels/eve.ts` |
 | Weekly digest and daily new-contacts email | `agent/schedules/` |
 | Skills: how to write each scheduled email, loaded only when a schedule fires | `agent/skills/` |
+| GitHub connection: the agent files its own error reports as issues | `agent/connections/github.ts`, `agent/skills/report_error.md` |
 | Evals for the skills | `evals/skills/` |
 | Database queries, shared by the agent and the pages | `lib/db.ts`, `db/schema.sql` |
 | Capture page, contacts list, chat | `app/page.tsx`, `app/contacts/`, `app/s/` |
@@ -100,6 +101,21 @@ Submissions don't go through the eve agent. The agent can read and edit every co
 - Social links are parsed in code. Bluesky profiles are read from the public API; LinkedIn and X can't be read without signing in, so visitors add their name.
 - New people are saved with a "Shared with you" label. If the email matches a contact you already have, nothing is overwritten; the submitted details are logged as an interaction on that contact for you to review.
 - A hidden honeypot field drops simple bots. There's no rate limiting, so treat the key as the main protection and rotate it if it leaks.
+
+## Error reports on GitHub
+
+When a tool fails unexpectedly (a database or network error, not "contact not found"), the agent loads the `report_error` skill, checks for an open duplicate, and opens an issue labeled `agent-error` on this repo.
+
+- `agent/connections/github.ts` is an OpenAPI connection with a two-operation spec (list and create issues), not GitHub's whole API. The owner, repo, label, and state are filled in by code, so the agent can't touch other repos or issues.
+- It uses a Vercel Connect GitHub App with app-scoped tokens, so it works in scheduled runs and emails where nobody is signed in. Set it up once from the project folder:
+
+  ```bash
+  vercel connect create github --name prm   # opens GitHub to install the app on this repo
+  ```
+
+  The connection expects connector `github/prm`; set `GITHUB_CONNECTOR` if yours differs. The target repo comes from the deployment's Git metadata, or `GITHUB_ISSUES_REPO` (`owner/name`).
+- The repo is public, so the skill tells the agent to leave out all contact details and redact values from error messages.
+- The agent can only report errors it sees in a tool result. If the model itself is unavailable, there's no agent turn to file anything.
 
 ## Skills and evals
 
