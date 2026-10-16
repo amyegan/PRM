@@ -19,6 +19,7 @@ Paste a LinkedIn, X, or Bluesky link, or snap a photo of a business card, and an
 | Model (via AI Gateway) | `agent/agent.ts` |
 | Contact tools: save, find, get, update, log interaction, list overdue, look up a social profile | `agent/tools/` |
 | Email channel (Chat SDK + Resend adapter) | `agent/channels/resend.ts` |
+| Facebook Messenger channel (Chat SDK) | `agent/channels/messenger.ts` |
 | Web channel with password auth | `agent/channels/eve.ts` |
 | Weekly digest and daily new-contacts email | `agent/schedules/` |
 | Skills: how to write each scheduled email, loaded only when a schedule fires | `agent/skills/` |
@@ -101,6 +102,18 @@ Submissions don't go through the eve agent. The agent can read and edit every co
 - Social links are parsed in code. Bluesky profiles are read from the public API; LinkedIn and X can't be read without signing in, so visitors add their name.
 - New people are saved with a "Shared with you" label. If the email matches a contact you already have, nothing is overwritten; the submitted details are logged as an interaction on that contact for you to review.
 - A hidden honeypot field drops simple bots. There's no rate limiting, so treat the key as the main protection and rotate it if it leaks.
+
+## Facebook Messenger
+
+Chat with the agent, or send it a business card photo, by messaging a Facebook Page. Optional: without credentials, `/eve/v1/messenger` answers 503 and the rest of the app is unaffected.
+
+1. At developers.facebook.com, create an app with the **Engage with customers on Messenger from Meta** use case, and copy the **App Secret** (App settings → Basic).
+2. Connect a Facebook Page to it and generate a **Page access token** (Messenger API settings).
+3. Under **Configure webhooks**, set the callback URL to `https://<your-domain>/eve/v1/messenger`, choose any string as the **Verify token**, and subscribe to `messages`. Use your custom domain: per-deployment URLs are behind Deployment Protection.
+4. Set `FACEBOOK_APP_SECRET`, `FACEBOOK_PAGE_ACCESS_TOKEN`, and `FACEBOOK_VERIFY_TOKEN` (the string from step 3), then deploy.
+5. Message your Page. The agent replies "This is a private assistant." and logs `[messenger] Ignoring message from sender <id>`. Set `OWNER_MESSENGER_ID` to that ID and redeploy.
+
+Only `OWNER_MESSENGER_ID` reaches the agent; anyone else gets the one-line reply. While your Meta app is in development mode, only people with a role on the app can message the Page anyway. Messenger only lets a Page reply within 24 hours of your last message, so the weekly and daily emails stay on email.
 
 ## Error reports on GitHub
 

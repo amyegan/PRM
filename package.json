@@ -19,6 +19,7 @@
     "db:migrate": "vercel env run -- node scripts/migrate.ts"
   },
   "dependencies": {
+    "@chat-adapter/messenger": "^4.41.1",
     "@chat-adapter/state-memory": "^4.41.1",
     "@chat-adapter/state-pg": "^4.41.1",
     "@radix-ui/react-use-controllable-state": "1.2.2",
