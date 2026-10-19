@@ -17,11 +17,11 @@ Paste a LinkedIn, X, or Bluesky link, or snap a photo of a business card, and an
 | --- | --- |
 | Agent instructions | `agent/instructions.md` |
 | Model (via AI Gateway) | `agent/agent.ts` |
-| Contact tools: save, find, get, update, log interaction, list overdue, look up a social profile | `agent/tools/` |
+| Contact tools: save, find, get, update, log interaction, list overdue, list by date added, set and manage reminders, look up a social profile | `agent/tools/` |
 | Email channel (Chat SDK + Resend adapter) | `agent/channels/resend.ts` |
 | Facebook Messenger channel (Chat SDK) | `agent/channels/messenger.ts` |
 | Web channel with password auth | `agent/channels/eve.ts` |
-| Weekly digest and daily new-contacts email | `agent/schedules/` |
+| Weekly digest, daily new-contacts email, and reminders | `agent/schedules/` |
 | Skills: how to write each scheduled email, loaded only when a schedule fires | `agent/skills/` |
 | GitHub connection: the agent files its own error reports as issues | `agent/connections/github.ts`, `agent/skills/report_error.md` |
 | Evals for the skills | `evals/skills/` |
@@ -33,7 +33,7 @@ The agent has no shell, file, or web tools (`defaultTools: false`). It can only 
 
 ## Fork it
 
-Everything deployment-specific comes from environment variables; nothing in the code points at the original author's accounts. `.env.example` lists every variable with what it does. Only `DATABASE_URL`, `APP_PASSWORD`, and `OWNER_EMAIL` are required. Email, Messenger, the share page, and GitHub error reports each switch off when their variables are unset. To make it yours, also consider `NEXT_PUBLIC_APP_NAME` (the app and bot name), `AGENT_MODEL`, and `WEEKLY_DIGEST_CRON` / `DAILY_DIGEST_CRON` (schedules run in UTC).
+Everything deployment-specific comes from environment variables; nothing in the code points at the original author's accounts. `.env.example` lists every variable with what it does. Only `DATABASE_URL`, `APP_PASSWORD`, and `OWNER_EMAIL` are required. Email, Messenger, the share page, and GitHub error reports each switch off when their variables are unset. To make it yours, also consider `NEXT_PUBLIC_APP_NAME` (the app and bot name), `AGENT_MODEL`, `OWNER_TIMEZONE` (for "this week" and other date questions), and `WEEKLY_DIGEST_CRON` / `DAILY_DIGEST_CRON` (schedules run in UTC).
 
 ## Deploy
 
@@ -118,6 +118,12 @@ Chat with the agent, or send it a business card photo, by messaging a Facebook P
 5. Message your Page. The agent replies "This is a private assistant." and logs `[messenger] Ignoring message from sender <id>`. Set `OWNER_MESSENGER_ID` to that ID and redeploy.
 
 Only `OWNER_MESSENGER_ID` reaches the agent; anyone else gets the one-line reply. While your Meta app is in development mode, only people with a role on the app can message the Page anyway. Messenger only lets a Page reply within 24 hours of your last message, so the weekly and daily emails stay on email.
+
+## Reminders
+
+Ask in chat, Messenger, or email: "remind me to send Priya the deck next Tuesday" or "remind me Friday at 2pm to call Dana". Reminders are stored in Postgres with a due time in `OWNER_TIMEZONE`, and `agent/schedules/reminders.ts` emails everything that's due in one message. Reply "done" or "push it to Friday" to update them.
+
+The schedule runs daily by default (`REMINDER_CRON`, 13:00 UTC), because Vercel's Hobby plan only runs cron jobs once a day, within the scheduled hour. On Pro, set `REMINDER_CRON="*/15 * * * *"` and timed reminders arrive within 15 minutes. Each run claims due reminders atomically, so overlapping runs never send one twice, and a failed email puts them back for the next run.
 
 ## Error reports on GitHub
 

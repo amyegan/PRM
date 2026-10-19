@@ -5,7 +5,8 @@ import { listRecentContacts } from "../../lib/db";
 export default defineTool({
   description:
     "List contacts you talked to recently, most recent first, with the last thing you talked about. " +
-    'Use it for questions like "who did I talk to this week?" or "who have I met lately?". ' +
+    'Use it for questions like "who did I talk to this week?". ' +
+    "For who you met or added in a period, use list_contacts_added instead. " +
     "For people you're overdue to contact, use list_reconnect_candidates instead.",
   inputSchema: z.object({
     days: z.number().int().min(1).max(365).default(7).describe("How many days back to look"),

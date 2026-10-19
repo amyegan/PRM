@@ -3,7 +3,7 @@ import { createPostgresState } from "@chat-adapter/state-pg";
 import { createResendAdapter } from "@resend/chat-sdk-adapter";
 import type { Message, Thread } from "chat";
 import { chatSdkChannel } from "eve/channels/chat-sdk";
-import { APP_NAME } from "../../lib/config";
+import { APP_NAME, todayContext } from "../../lib/config";
 import { databaseUrl } from "../../lib/database-url";
 
 const THREAD_STATE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -58,7 +58,7 @@ async function forwardOwnerEmail(thread: Thread, message: Message) {
       principalId: ownerEmail(),
       attributes: {},
     },
-    context: [`Today is ${new Date().toDateString()}. This message is an email from the owner.`],
+    context: [`${todayContext()} This message is an email from the owner.`],
     turnPolicy: "queue",
   });
 }

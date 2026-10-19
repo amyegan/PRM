@@ -1,6 +1,7 @@
 import { type AuthFn, localDev, vercelOidc } from "eve/channels/auth";
 import { defaultEveAuth, eveChannel } from "eve/channels/eve";
 import { isValidSession, readCookie, SESSION_COOKIE } from "../../lib/auth";
+import { todayContext } from "../../lib/config";
 
 /** Accepts browser requests carrying the cookie set by the /login page. */
 function ownerSession(): AuthFn<Request> {
@@ -39,7 +40,7 @@ export default eveChannel({
   onMessage(ctx) {
     return {
       auth: defaultEveAuth(ctx),
-      context: [`Today is ${new Date().toDateString()}.`],
+      context: [todayContext()],
     };
   },
 });

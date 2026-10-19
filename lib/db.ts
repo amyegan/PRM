@@ -283,6 +283,30 @@ export async function listContactsCreatedSince(since: Date): Promise<Contact[]> 
   return rows.map(toContact);
 }
 
+/**
+ * Contacts added between two calendar dates (inclusive) in `timeZone`, newest first.
+ * `total` counts every match, even past `limit`.
+ */
+export async function listContactsAddedBetween(options: {
+  from: string;
+  to: string;
+  timeZone: string;
+  metAt?: string;
+  limit?: number;
+}): Promise<{ total: number; contacts: Contact[] }> {
+  const { rows } = await pool().query(
+    `select c.*, count(*) over () as total
+     from contacts c
+     where c.created_at >= ($1::date)::timestamp at time zone $3
+       and c.created_at < ($2::date + 1)::timestamp at time zone $3
+       and ($4::text is null or c.met_at ilike '%' || $4 || '%')
+     order by c.created_at desc
+     limit $5`,
+    [options.from, options.to, options.timeZone, options.metAt ?? null, options.limit ?? 25],
+  );
+  return { total: rows[0] ? Number(rows[0].total) : 0, contacts: rows.map(toContact) };
+}
+
 export type RecentContact = Contact & { lastInteraction: string | null };
 
 /** Contacts you talked to in the last `days` days, most recent first. */
@@ -298,4 +322,115 @@ export async function listRecentContacts(days = 7, limit = 20): Promise<RecentCo
     [days, limit],
   );
   return rows.map((row) => ({ ...toContact(row), lastInteraction: row.last_interaction }));
+}
+
+export type ReminderStatus = "open" | "done" | "cancelled";
+
+export type Reminder = {
+  id: number;
+  contactId: number | null;
+  contactName: string | null;
+  note: string;
+  dueAt: string;
+  status: ReminderStatus;
+  sentAt: string | null;
+};
+
+function toReminder(row: Record<string, any>): Reminder {
+  return {
+    id: Number(row.id),
+    contactId: row.contact_id === null ? null : Number(row.contact_id),
+    contactName: row.contact_name ?? null,
+    note: row.note,
+    dueAt: iso(row.due_at)!,
+    status: row.status,
+    sentAt: iso(row.sent_at),
+  };
+}
+
+const REMINDER_COLUMNS = `r.*, (select name from contacts c where c.id = r.contact_id) as contact_name`;
+
+/** `dueDate` (YYYY-MM-DD) and `dueTime` (HH:MM, default 09:00) are wall-clock values in `timeZone`. */
+export async function createReminder(options: {
+  note: string;
+  dueDate: string;
+  dueTime?: string;
+  timeZone: string;
+  contactId?: number;
+}): Promise<Reminder> {
+  const { rows } = await pool().query(
+    `with r as (
+       insert into reminders (note, contact_id, due_at)
+       values ($1, $2, ($3::date + $4::time) at time zone $5)
+       returning *)
+     select ${REMINDER_COLUMNS} from r`,
+    [options.note, options.contactId ?? null, options.dueDate, options.dueTime ?? "09:00", options.timeZone],
+  );
+  return toReminder(rows[0]);
+}
+
+export async function listReminders(options: {
+  status?: ReminderStatus | "all";
+  contactId?: number;
+  limit?: number;
+}): Promise<Reminder[]> {
+  const status = options.status ?? "open";
+  const { rows } = await pool().query(
+    `select ${REMINDER_COLUMNS} from reminders r
+     where ($1 = 'all' or r.status = $1) and ($2::bigint is null or r.contact_id = $2)
+     order by r.due_at asc
+     limit $3`,
+    [status, options.contactId ?? null, options.limit ?? 50],
+  );
+  return rows.map(toReminder);
+}
+
+/** Changing the due date or reopening a reminder clears sent_at so it's delivered again. */
+export async function updateReminder(
+  id: number,
+  changes: { note?: string; dueDate?: string; dueTime?: string; timeZone: string; status?: ReminderStatus },
+): Promise<Reminder | null> {
+  const reschedule = changes.dueDate !== undefined || changes.dueTime !== undefined;
+  const { rows } = await pool().query(
+    `with r as (
+       update reminders set
+         note = coalesce($2, note),
+         status = coalesce($3, status),
+         due_at = case when $4::boolean
+           then (coalesce($5::date, (due_at at time zone $7)::date) + coalesce($6::time, (due_at at time zone $7)::time)) at time zone $7
+           else due_at end,
+         sent_at = case when $4::boolean or $3 = 'open' then null else sent_at end,
+         updated_at = now()
+       where id = $1
+       returning *)
+     select ${REMINDER_COLUMNS} from r`,
+    [id, changes.note ?? null, changes.status ?? null, reschedule, changes.dueDate ?? null, changes.dueTime ?? null, changes.timeZone],
+  );
+  return rows[0] ? toReminder(rows[0]) : null;
+}
+
+/**
+ * Atomically claims open reminders that are due and unsent by stamping sent_at, so overlapping
+ * schedule runs never deliver the same reminder twice.
+ */
+export async function claimDueReminders(limit = 25): Promise<Reminder[]> {
+  const { rows } = await pool().query(
+    `with claimed as (
+       update reminders set sent_at = now()
+       where id in (
+         select id from reminders
+         where status = 'open' and sent_at is null and due_at <= now()
+         order by due_at
+         limit $1
+         for update skip locked)
+       returning *)
+     select ${REMINDER_COLUMNS} from claimed r order by r.due_at`,
+    [limit],
+  );
+  return rows.map(toReminder);
+}
+
+/** Puts claimed reminders back when their email couldn't be sent, so the next run retries. */
+export async function releaseReminders(ids: number[]): Promise<void> {
+  if (ids.length > 0) await pool().query(`update reminders set sent_at = null where id = any($1::bigint[])`, [ids]);
 }

@@ -38,3 +38,18 @@ alter table contacts add column if not exists source text not null default 'capt
 
 -- New contacts default to reconnecting every 60 days (was 90). Existing contacts keep their cadence.
 alter table contacts alter column reconnect_every_days set default 60;
+
+-- Reminders the owner sets ("remind me to send Priya the deck on Tuesday"). The reminders schedule
+-- claims due rows by setting sent_at, then emails them; they stay open until marked done.
+create table if not exists reminders (
+  id          bigserial primary key,
+  contact_id  bigint references contacts(id) on delete cascade,
+  note        text not null,
+  due_at      timestamptz not null,
+  status      text not null default 'open', -- 'open' | 'done' | 'cancelled'
+  sent_at     timestamptz,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create index if not exists reminders_due_idx on reminders (due_at) where status = 'open' and sent_at is null;

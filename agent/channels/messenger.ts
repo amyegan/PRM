@@ -5,7 +5,7 @@ import type { UserContent } from "ai";
 import type { Message, Thread } from "chat";
 import { defineChannel, GET, POST } from "eve/channels";
 import { chatSdkChannel } from "eve/channels/chat-sdk";
-import { APP_NAME } from "../../lib/config";
+import { APP_NAME, todayContext } from "../../lib/config";
 import { databaseUrl } from "../../lib/database-url";
 
 // Facebook Messenger: chat with the agent by messaging your Facebook Page.
@@ -52,7 +52,7 @@ function createMessengerChannel() {
         attributes: {},
       },
       context: [
-        `Today is ${new Date().toDateString()}. This message is from the owner on Facebook Messenger. ` +
+        `${todayContext()} This message is from the owner on Facebook Messenger. ` +
           "Keep replies short and plain: Messenger doesn't render Markdown.",
       ],
       turnPolicy: "queue",
